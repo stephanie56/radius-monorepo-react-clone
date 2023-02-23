@@ -1,0 +1,38 @@
+name: 'Deploy'
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: 'Deploy app'
+
+    steps:
+    - name: Checkout the codebase
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set SHAs for base and head for `nx affected` commands
+      uses: nrwl/nx-set-shas@v3
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'yarn'
+
+    - name: Install dependencies
+      run: yarn install --frozen-lockfile
+
+    ## Run lint, test, and build for all affected projects
+    - run: npx nx affected --target=lint --parallel=3
+    - run: npx nx affected --target=test --parallel=3 --configuration=ci
+    - run: npx nx affected --target=build --parallel=3
+    - uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        working-directory: 'apps/demo'	
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+
